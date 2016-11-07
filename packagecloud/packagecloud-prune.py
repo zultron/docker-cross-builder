@@ -40,7 +40,7 @@ repo=api.repo_show(args.user, args.repo)
 print "Packagecloud.io repo '%s'" % repo.name
 
 def prune_old_versions(package):
-    if int(package.versions_count) > args.keep_versions:
+    if args.keep_versions and int(package.versions_count) > args.keep_versions:
         print "Package %s arch %s:  %s version > %s max" % \
             (package.name, package.arch,
              package.versions_count, args.keep_versions)
@@ -59,15 +59,16 @@ def prune_old_versions(package):
                     pv.destroy()
         print
     else:
-        print "Package %s arch %s:  %s version <= %s max" % \
+        print "Package %s arch %s:  %s version" % \
             (package.name, package.arch,
-             package.versions_count, args.keep_versions)
+             package.versions_count)
 
 args.filter_re = re.compile(args.filter)
-for p in repo.index('deb'):
-    if args.filter_re.match(p.name) is None:
-        print "Package %s arch %s:  filter not matched, skipping" % \
-            (p.name, p.arch)
-        continue
-    prune_old_versions(p)
+for ptype in ('deb', 'dsc'):
+    for p in repo.index(ptype):
+        if args.filter_re.match(p.name) is None:
+            # print "Package %s arch %s:  filter not matched, skipping" % \
+            #     (p.name, p.arch)
+            continue
+        prune_old_versions(p)
 
