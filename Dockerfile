@@ -105,9 +105,7 @@ ENV I386_ROOT=/sysroot/i386
 ENV I386_HOST_MULTIARCH=i386-linux-gnu
 # - Add cross-binutils and multilib tools
 RUN apt-get install -y \
-        binutils-multiarch \
-        gcc-multilib \
-        g++-multilib
+        binutils-multiarch
 # - Symlink i586 binutils to i386 so ./configure can find them
 RUN for i in /usr/bin/i586-linux-gnu-*; do \
         ln -s $(basename $i) $(echo $i | sed 's/i586/i386/'); \
