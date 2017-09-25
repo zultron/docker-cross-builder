@@ -1,7 +1,7 @@
 # Docker Cross-Builder
 
 This builds a Docker image containing `multistrap` system root trees
-for Debian Jessie `armhf` and `i386` architectures, with tools in the
+for Debian Stretch `armhf` and `i386` architectures, with tools in the
 native system to cross-build Debian packages.
 
 The container is meant to be built upon by other containers, adding
@@ -17,15 +17,15 @@ testing in simulated development environments**.
 ## Using the builder
 
 - Pull or build the Docker image
-  - Pull image, `jessie` tag, from Docker Hub
+  - Pull image, `stretch` tag, from Docker Hub
 
-            docker pull zultron/mk-builder-3:jessie
+            docker pull zultron/docker-cross-builder:stretch
 
   - Or, build image from `Dockerfile`
 	- Clone this repository and `cd` into the directory
 
-            git clone https://github.com/zultron/mk-builder-3.git
-			cd mk-builder-3
+            git clone https://github.com/zultron/docker-cross-builder.git -b stretch
+			cd docker-cross-builder
 
 	- Customize the *Set up environment* section the `Dockerfile` as
 	  needed
@@ -33,14 +33,14 @@ testing in simulated development environments**.
 		 `$GID` to match those outside the container.
 	- Build Docker image
 
-	        ./mk-builder.sh build
+	        ./docker-cross-builder.sh build
 
 - Start the Docker image
   - If `$MK_BUILDER` is the path to this clone (and `$MK` is the path
     to the Machinekit clone)
 
             cd $MK
-            $MK_BUILDER/mk-builder.sh
+            $MK_BUILDER/docker-cross-builder.sh
 
 - Building packages
   - Prepare the source (as usual)

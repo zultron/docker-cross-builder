@@ -1,4 +1,4 @@
-FROM debian:jessie
+FROM debian:stretch
 MAINTAINER John Morris <john@zultron.com>
 
 ###################################################################
@@ -29,12 +29,6 @@ RUN sed -i /etc/apt/sources.list -e 's/httpredir.debian.org/ftp.debian.org/'
 # install apt-transport-https for packagecloud.io
 RUN apt-get update && \
     apt-get install -y apt-transport-https ca-certificates
-
-# add emdebian package archive
-ADD emdebian-toolchain-archive.key /tmp/
-RUN apt-key add /tmp/emdebian-toolchain-archive.key && \
-    echo "deb http://emdebian.org/tools/debian/ jessie main" > \
-        /etc/apt/sources.list.d/emdebian.list
 
 # add foreign architectures
 RUN dpkg --add-architecture armhf
@@ -67,7 +61,8 @@ RUN apt-get -y install \
         sudo \
 	lftp \
 	multistrap \
-	debian-keyring
+	debian-keyring \
+	debian-archive-keyring
 
 # Dev tools
 RUN apt-get install -y \
@@ -103,23 +98,19 @@ RUN apt-get -y install \
         crossbuild-essential-armhf \
         qemu-user-static \
         linux-libc-dev:armhf
-# - Symlink armhf-arch pkg-config
-RUN ln -s pkg-config /usr/bin/${ARM_HOST_MULTIARCH}-pkg-config
 
 # Prepare i386 build root environment
 ENV I386_ROOT=/sysroot/i386
 ENV I386_HOST_MULTIARCH=i386-linux-gnu
 # - Add cross-binutils and multilib tools
 RUN apt-get install -y \
-        binutils-i586-linux-gnu \
-        gcc-4.9-multilib \
-        g++-4.9-multilib
+        binutils-multiarch \
+        gcc-multilib \
+        g++-multilib
 # - Symlink i586 binutils to i386 so ./configure can find them
 RUN for i in /usr/bin/i586-linux-gnu-*; do \
         ln -s $(basename $i) $(echo $i | sed 's/i586/i386/'); \
     done
-# - Symlink i386-arch pkg-config
-RUN ln -s pkg-config /usr/bin/${I386_HOST_MULTIARCH}-pkg-config
 
 ###########################################
 # Monkey-patches
@@ -127,7 +118,7 @@ RUN ln -s pkg-config /usr/bin/${I386_HOST_MULTIARCH}-pkg-config
 # Add `{dh_shlibdeps,dpkg-shlibdeps} --sysroot` argument
 ADD dpkg-shlibdeps.patch /tmp/
 RUN cd / && \
-    patch -p0 < /tmp/dpkg-shlibdeps.patch && \
+    patch -p0 -F 0 -N < /tmp/dpkg-shlibdeps.patch && \
     rm /tmp/dpkg-shlibdeps.patch
 # Help dpkg-shlibdeps find i386 libraries
 RUN mkdir -p ${I386_ROOT}/usr/lib/ && \

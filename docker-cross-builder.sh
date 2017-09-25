@@ -1,6 +1,7 @@
 #!/bin/bash -e
 
 IMAGE=zultron/docker-cross-builder
+TAG=stretch
 NAME=docker-cross-builder
 
 # Build: If called with args `docker-cross-builder build [...]`, then
@@ -9,7 +10,7 @@ NAME=docker-cross-builder
 if test "$1" = "build"; then
     shift
     cd $(dirname $0)
-    docker build -t ${IMAGE} "$@" .
+    docker build -t ${IMAGE}:${TAG} "$@" .
     exit
 fi
 
@@ -43,4 +44,4 @@ docker run --rm \
     -w $PWD \
     -e DISPLAY \
     -h ${NAME} --name ${NAME} \
-    ${IMAGE} "$@"
+    ${IMAGE}:${TAG} "$@"

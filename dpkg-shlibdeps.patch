@@ -12,10 +12,9 @@ Date:   Wed Oct 12 09:58:07 2016 -0500
     https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=804624
 
 diff --git /usr/share/perl5/Dpkg/Path.pm b/Path.pm
-index d6dda57..4e7e83c 100644
---- /usr/share/perl5/Dpkg/Path.pm
-+++ /usr/share/perl5/Dpkg/Path.pm
-@@ -229,10 +229,12 @@ Return the path of all available control files for the given package.
+--- /usr/share/perl5/Dpkg/Path.pm.orig	2017-05-17 11:16:25.000000000 +0000
++++ /usr/share/perl5/Dpkg/Path.pm	2017-09-25 15:42:07.987108340 +0000
+@@ -235,10 +235,12 @@
  
  =cut
  
@@ -35,7 +34,7 @@ diff --git /usr/bin/dpkg-shlibdeps b/dpkg-shlibdeps
 index 9149a09..eb1df3d 100755
 --- /usr/bin/dpkg-shlibdeps
 +++ /usr/bin/dpkg-shlibdeps
-@@ -56,7 +56,8 @@ my $i = 0; my %depstrength = map { $_ => $i++ } @depfields;
+@@ -57,7 +57,8 @@
  
  textdomain('dpkg-dev');
  
@@ -45,56 +44,55 @@ index 9149a09..eb1df3d 100755
  my $shlibsoverride = "$Dpkg::CONFDIR/shlibs.override";
  my $shlibsdefault = "$Dpkg::CONFDIR/shlibs.default";
  my $shlibslocal = 'debian/shlibs.local';
-@@ -70,6 +71,7 @@ my $debug = 0;
- my @exclude = ();
+@@ -73,6 +74,7 @@
  my @pkg_dir_to_search = ();
+ my @pkg_dir_to_ignore = ();
  my $host_arch = get_host_arch();
 +my %system_libs = ();
  
  my (@pkg_shlibs, @pkg_symbols, @pkg_root_dirs);
- if (-d 'debian') {
-@@ -100,7 +102,7 @@ foreach (@ARGV) {
+ 
+@@ -99,7 +101,7 @@
      } elsif (m/^--version$/) {
  	version(); exit(0);
      } elsif (m/^--admindir=(.*)$/) {
 -	$admindir = $1;
 +	$admindir = $sysroot . $1;
  	if (not -d $admindir) {
- 	    error(_g("administrative directory '%s' does not exist"), $admindir);
+ 	    error(g_("administrative directory '%s' does not exist"), $admindir);
  	}
-@@ -151,6 +153,8 @@ my $build_deps = deps_parse($bd_value, build_dep => 1, reduce_restrictions => 1)
- error(_g('error occurred while parsing %s'), 'Build-Depends/Build-Depends-Arch')
+@@ -164,6 +166,8 @@
+ error(g_('error occurred while parsing %s'), 'Build-Depends/Build-Depends-Arch')
      unless defined $build_deps;
  
 +print ">> DPKG_ROOT set to $sysroot\n" if ($sysroot && $debug > 1);
 +
  my %dependencies;
  
- # Statictics on soname seen in the whole run (with multiple analysis of
-@@ -196,6 +200,7 @@ foreach my $file (keys %exec) {
- 	    next;
- 	}
- 	$libfiles{$lib} = $soname;
+ # Statistics on soname seen in the whole run (with multiple analysis of
+@@ -217,6 +221,7 @@
+ 	# Track shared libraries for package mapping.
+ 	foreach my $lib (@libs) {
+ 	    $libfiles{$lib} = $soname;
 +	$lib = $sysroot . $lib if $lib =~ /^\//;
- 	my $reallib = realpath($lib);
- 	if ($reallib ne $lib) {
- 	    $altlibfiles{$reallib} = $soname;
-@@ -260,8 +265,12 @@ foreach my $file (keys %exec) {
- 		    if $debug > 1;
+ 	    my $reallib = realpath($lib);
+ 	    if ($reallib ne $lib) {
+ 		$altlibfiles{$reallib} = $soname;
+@@ -287,8 +292,11 @@
+                 next SONAME;
  	    } else {
  		# No symbol file found, fall back to standard shlibs
--                print "Using shlibs+objdump for $soname (file $lib)\n" if $debug;
+-                debug(1, "Using shlibs+objdump for $soname (file $lib)");
 -                $objdump_cache{$lib} //= Dpkg::Shlibs::Objdump::Object->new($lib);
 +                my $sysroot_lib = (exists $system_libs{$lib} ? $sysroot : "")
 +                    . $lib;
-+                print "Using shlibs+objdump for $soname (file $sysroot_lib)\n"
-+                    if $debug;
++                debug(1, "Using shlibs+objdump for $soname (file $sysroot_lib)");
 +                $objdump_cache{$lib} //= Dpkg::Shlibs::Objdump::Object->new(
 +                    $sysroot_lib);
                  my $libobj = $objdump_cache{$lib};
                  my $id = $dumplibs_wo_symfile->add_object($libobj);
  		if (($id ne $soname) and ($id ne $lib)) {
-@@ -642,7 +651,7 @@ sub add_shlibs_dep {
+@@ -680,7 +688,7 @@
  	# Fallback to other shlibs files but it shouldn't be necessary
  	push @shlibs, @pkg_shlibs;
      } else {
@@ -103,7 +101,7 @@ index 9149a09..eb1df3d 100755
  	push @shlibs, $control_file if defined $control_file;
      }
      push @shlibs, $shlibsdefault;
-@@ -729,9 +738,10 @@ sub find_symbols_file {
+@@ -780,9 +788,10 @@
  	# Fallback to other symbols files but it shouldn't be necessary
  	push @files, @pkg_symbols;
      } else {
@@ -117,28 +115,27 @@ index 9149a09..eb1df3d 100755
  	push @files, $control_file if defined $control_file;
      }
  
-@@ -814,8 +824,13 @@ sub my_find_library {
+@@ -869,7 +878,13 @@
  
      # Fallback in the root directory if we have not found what we were
      # looking for in the packages
--    $file = find_library($lib, \@RPATH, $format, '');
--    return $file if defined($file);
+-    return find_library($lib, \@RPATH, $format, '');
 +    $file = find_library($lib, \@RPATH, $format, $sysroot);
 +    if (defined($file)) {
 +	print "    find_library() found $lib in $file\n" if ($debug > 1);
 +	$file =~ s/^$sysroot//;
 +	$system_libs{$file} = 1;  # mark as system lib with abs. path
-+	return $file;
 +    }
- 
-     return;
++    return $file;
  }
-@@ -845,7 +860,7 @@ sub find_packages {
+ 
+ my %cached_pkgmatch = ();
+@@ -897,7 +912,7 @@
  	open STDERR, '>', '/dev/null'
- 	    or syserr(_g('cannot open file %s'), '/dev/null');
+ 	    or syserr(g_('cannot open file %s'), '/dev/null');
  	$ENV{LC_ALL} = 'C';
--	exec('dpkg', '--search', '--', @files)
-+	exec('dpkg', '--search', "--admindir=$admindir", '--', @files)
- 	    or syserr(_g('unable to execute %s'), 'dpkg');
+-	exec 'dpkg-query', '--search', '--', @files
++	exec 'dpkg-query', '--search', "--admindir=$admindir", '--', @files
+ 	    or syserr(g_('unable to execute %s'), 'dpkg');
      }
      while (<$dpkg_fh>) {
