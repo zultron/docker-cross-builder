@@ -53,6 +53,7 @@ RUN apt-get -y install \
 	sharutils \
 	net-tools \
 	time \
+	procps \
 	help2man \
 	xvfb \
 	xauth \
